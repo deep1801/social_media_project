@@ -1,16 +1,15 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const PostSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     text: {
       type: String,
-      required: [true, 'Please add some text'],
-      maxlength: [500, 'Post cannot be more than 500 characters'],
+      maxlength: [500, "Post cannot be more than 500 characters"],
     },
     image: {
       type: String,
@@ -19,7 +18,7 @@ const PostSchema = new mongoose.Schema(
       {
         user: {
           type: mongoose.Schema.ObjectId,
-          ref: 'User',
+          ref: "User",
         },
       },
     ],
@@ -27,12 +26,12 @@ const PostSchema = new mongoose.Schema(
       {
         user: {
           type: mongoose.Schema.ObjectId,
-          ref: 'User',
+          ref: "User",
         },
         text: {
           type: String,
           required: true,
-          maxlength: [300, 'Comment cannot be more than 300 characters'],
+          maxlength: [300, "Comment cannot be more than 300 characters"],
         },
         name: {
           type: String,
@@ -49,14 +48,14 @@ const PostSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Cascade delete comments when a post is deleted
-PostSchema.pre('remove', async function (next) {
+PostSchema.pre("remove", async function (next) {
   console.log(`Comments being removed from post ${this._id}`);
-  await this.model('Comment').deleteMany({ post: this._id });
+  await this.model("Comment").deleteMany({ post: this._id });
   next();
 });
 
-module.exports = mongoose.model('Post', PostSchema);
+module.exports = mongoose.model("Post", PostSchema);

@@ -1,84 +1,110 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle, ArrowRight } from "lucide-react";
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       await login(formData.email, formData.password);
       navigate("/");
     } catch (err) {
-      // Handle different types of errors
-      if (err.response) {
-        // Server responded with an error status code (4xx, 5xx)
-        if (err.response.status === 401) {
-          setError("Invalid email or password. Please try again.");
-        } else if (err.response.status === 500) {
-          setError("Server error. Please try again later.");
-        } else if (err.response.data && err.response.data.error) {
-          setError(err.response.data.error);
-        } else {
-          setError("Login failed. Please check your details and try again.");
-        }
-      } else if (err.request) {
-        // Request was made but no response received
-        setError(
-          "Cannot connect to the server. Please check your internet connection.",
-        );
-      } else {
-        // Something happened in setting up the request
-        setError("An error occurred. Please try again.");
-      }
-      console.error("Login error details:", err);
+      if (err.response?.status === 401)
+        setError("Invalid email or password. Please try again.");
+      else if (err.response?.status === 500)
+        setError("Server error. Please try again later.");
+      else if (err.response?.data?.error) setError(err.response.data.error);
+      else if (err.request)
+        setError("Cannot connect to the server. Please check your connection.");
+      else setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 px-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="inline-block w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4"></div>
-          <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-gray-600 mt-2">Sign in to continue to SocialApp</p>
+    <div className="min-h-screen flex">
+      {/* Left panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-brand-600 via-brand-700 to-violet-700 relative overflow-hidden flex-col items-center justify-center p-12">
+        <div className="absolute inset-0 opacity-10">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full border border-white"
+              style={{
+                width: `${(i + 1) * 120}px`,
+                height: `${(i + 1) * 120}px`,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%,-50%)",
+              }}
+            />
+          ))}
         </div>
+        <div className="relative z-10 text-center text-white">
+          <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-8 h-8 bg-white rounded-lg" />
+          </div>
+          <h1 className="text-4xl font-bold mb-3">SocialApp</h1>
+          <p className="text-brand-100 text-lg max-w-xs">
+            Connect, share, and discover with people around you.
+          </p>
+          <div className="mt-10 grid grid-cols-3 gap-4 text-center">
+            {[
+              ["10K+", "Users"],
+              ["50K+", "Posts"],
+              ["100K+", "Connections"],
+            ].map(([n, l]) => (
+              <div key={l} className="bg-white/10 backdrop-blur rounded-xl p-4">
+                <div className="text-2xl font-bold">{n}</div>
+                <div className="text-brand-200 text-sm">{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-        <div className="card">
+      {/* Right panel */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-white">
+        <div className="w-full max-w-md">
+          <div className="mb-8">
+            <div className="lg:hidden w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 mb-6" />
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Welcome back
+            </h2>
+            <p className="text-gray-500 mt-1.5">
+              Sign in to your account to continue
+            </p>
+          </div>
+
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-700">
-              <AlertCircle size={20} />
-              <span className="text-sm">{error}</span>
+            <div className="alert-error mb-6">
+              <AlertCircle size={18} className="flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Email address
               </label>
               <div className="relative">
                 <Mail
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={17}
                 />
                 <input
                   type="email"
@@ -86,20 +112,20 @@ const Login = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="Enter your email"
+                  placeholder="you@example.com"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <Lock
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={17}
                 />
                 <input
                   type="password"
@@ -116,23 +142,29 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full"
+              className="btn-primary w-full py-2.5 text-base mt-2"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="spinner w-4 h-4" /> Signing in...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Sign In <ArrowRight size={17} />
+                </span>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                className="text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Sign up
-              </Link>
-            </p>
-          </div>
+          <p className="mt-8 text-center text-sm text-gray-500">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="text-brand-600 font-semibold hover:text-brand-700"
+            >
+              Create one free
+            </Link>
+          </p>
         </div>
       </div>
     </div>

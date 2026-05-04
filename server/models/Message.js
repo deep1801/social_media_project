@@ -1,21 +1,23 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const MessageSchema = new mongoose.Schema(
   {
     conversation: {
       type: mongoose.Schema.ObjectId,
-      ref: 'Conversation',
+      ref: "Conversation",
       required: true,
     },
     sender: {
       type: mongoose.Schema.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     text: {
       type: String,
-      required: [true, 'Please add message text'],
-      maxlength: [1000, 'Message cannot be more than 1000 characters'],
+      maxlength: [1000, "Message cannot be more than 1000 characters"],
+    },
+    image: {
+      type: String, // base64 data URL or /uploads path
     },
     read: {
       type: Boolean,
@@ -24,7 +26,7 @@ const MessageSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-module.exports = mongoose.model('Message', MessageSchema);
+module.exports = mongoose.model("Message", MessageSchema);

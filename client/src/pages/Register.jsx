@@ -1,157 +1,190 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { User, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { User, Mail, Lock, AlertCircle, ArrowRight } from "lucide-react";
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
+    setError("");
+    if (formData.password !== formData.confirmPassword)
+      return setError("Passwords do not match");
+    if (formData.password.length < 6)
+      return setError("Password must be at least 6 characters");
     setLoading(true);
-
     try {
       await register(formData.name, formData.email, formData.password);
-      navigate('/');
+      navigate("/");
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      setError(
+        err.response?.data?.error || "Registration failed. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 px-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="inline-block w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4"></div>
-          <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-600 mt-2">Join SocialApp today</p>
-        </div>
+  const fields = [
+    {
+      name: "name",
+      type: "text",
+      icon: User,
+      placeholder: "Your full name",
+      label: "Full name",
+    },
+    {
+      name: "email",
+      type: "email",
+      icon: Mail,
+      placeholder: "you@example.com",
+      label: "Email address",
+    },
+    {
+      name: "password",
+      type: "password",
+      icon: Lock,
+      placeholder: "Min. 6 characters",
+      label: "Password",
+    },
+    {
+      name: "confirmPassword",
+      type: "password",
+      icon: Lock,
+      placeholder: "Repeat your password",
+      label: "Confirm password",
+    },
+  ];
 
-        <div className="card">
+  return (
+    <div className="min-h-screen flex">
+      {/* Left panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-violet-600 via-brand-700 to-brand-600 relative overflow-hidden flex-col items-center justify-center p-12">
+        <div className="absolute inset-0 opacity-10">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full border border-white"
+              style={{
+                width: `${(i + 1) * 120}px`,
+                height: `${(i + 1) * 120}px`,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%,-50%)",
+              }}
+            />
+          ))}
+        </div>
+        <div className="relative z-10 text-center text-white">
+          <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-8 h-8 bg-white rounded-lg" />
+          </div>
+          <h1 className="text-4xl font-bold mb-3">Join SocialApp</h1>
+          <p className="text-violet-100 text-lg max-w-xs">
+            Start your journey and connect with amazing people today.
+          </p>
+          <div className="mt-10 space-y-3 text-left">
+            {[
+              "Create your free profile",
+              "Share posts & photos",
+              "Connect with friends",
+              "Real-time messaging",
+            ].map((f) => (
+              <div
+                key={f}
+                className="flex items-center gap-3 bg-white/10 backdrop-blur rounded-xl px-4 py-3"
+              >
+                <div className="w-2 h-2 rounded-full bg-white" />
+                <span className="text-sm">{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-white">
+        <div className="w-full max-w-md">
+          <div className="mb-8">
+            <div className="lg:hidden w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 mb-6" />
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Create account
+            </h2>
+            <p className="text-gray-500 mt-1.5">
+              It's free and only takes a minute
+            </p>
+          </div>
+
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-700">
-              <AlertCircle size={20} />
-              <span className="text-sm">{error}</span>
+            <div className="alert-error mb-6">
+              <AlertCircle size={18} className="flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="input-field pl-10"
-                  placeholder="Enter your name"
-                  required
-                />
+            {fields.map(({ name, type, icon: Icon, placeholder, label }) => (
+              <div key={name}>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  {label}
+                </label>
+                <div className="relative">
+                  <Icon
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    size={17}
+                  />
+                  <input
+                    type={type}
+                    name={name}
+                    value={formData[name]}
+                    onChange={handleChange}
+                    className="input-field pl-10"
+                    placeholder={placeholder}
+                    required
+                  />
+                </div>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="input-field pl-10"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="input-field pl-10"
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="input-field pl-10"
-                  placeholder="Confirm your password"
-                  required
-                />
-              </div>
-            </div>
+            ))}
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full"
+              className="btn-primary w-full py-2.5 text-base mt-2"
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="spinner w-4 h-4" /> Creating account...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Create Account <ArrowRight size={17} />
+                </span>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-                Sign in
-              </Link>
-            </p>
-          </div>
+          <p className="mt-8 text-center text-sm text-gray-500">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="text-brand-600 font-semibold hover:text-brand-700"
+            >
+              Sign in
+            </Link>
+          </p>
         </div>
       </div>
     </div>

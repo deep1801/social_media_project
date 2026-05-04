@@ -1,19 +1,28 @@
 import { createContext, useState, useContext, useEffect } from "react";
 import axiosInstance from "../api/axiosInstance";
+import socket from "../api/socket";
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Connect socket when user logs in, disconnect on logout
+  useEffect(() => {
+    if (user?._id) {
+      socket.connect();
+      socket.emit("user:join", user._id);
+    } else {
+      socket.disconnect();
+    }
+  }, [user?._id]);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -42,30 +51,19 @@ export const AuthProvider = ({ children }) => {
         password,
       });
       const { token, data } = res.data;
-      if (!token || !data) {
-        throw new Error("Invalid response from server");
-      }
+      if (!token || !data) throw new Error("Invalid response from server");
       localStorage.setItem("token", token);
       setUser(data);
       return data;
     } catch (error) {
       console.error("Login error:", error);
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error("Response data:", error.response.data);
-        console.error("Response status:", error.response.status);
-        console.error("Response headers:", error.response.headers);
         throw error;
       } else if (error.request) {
-        // The request was made but no response was received
-        console.error("No response received:", error.request);
         throw new Error(
           "No response from server. Please check your connection.",
         );
       } else {
-        // Something happened in setting up the request
-        console.error("Request setup error:", error.message);
         throw new Error("Error setting up login request");
       }
     }
@@ -94,14 +92,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    checkAuth,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{ user, loading, login, register, logout, checkAuth }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };

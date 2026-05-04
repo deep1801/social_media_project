@@ -1,24 +1,25 @@
-const Message = require('../models/Message');
-const Conversation = require('../models/Conversation');
-const User = require('../models/User');
-const ErrorResponse = require('../utils/errorResponse');
-const asyncHandler = require('../middleware/async');
-const { createNotification } = require('./notifications');
+const Message = require("../models/Message");
+const Conversation = require("../models/Conversation");
+const User = require("../models/User");
+const ErrorResponse = require("../utils/errorResponse");
+const asyncHandler = require("../middleware/async");
+const { createNotification } = require("./notifications");
+const path = require("path");
+const fs = require("fs");
 
 // @desc    Get all conversations for logged in user
 // @route   GET /api/v1/messages/conversations
 // @access  Private
 exports.getConversations = asyncHandler(async (req, res, next) => {
   const conversations = await Conversation.find({
-    
     participants: req.user.id,
   })
-    .populate('participants', ['name', 'avatar'])
+    .populate("participants", ["name", "avatar"])
     .populate({
-      path: 'lastMessage',
+      path: "lastMessage",
       populate: {
-        path: 'sender',
-        select: 'name avatar',
+        path: "sender",
+        select: "name avatar",
       },
     })
     .sort({ updatedAt: -1 });
@@ -38,7 +39,7 @@ exports.getOrCreateConversation = asyncHandler(async (req, res, next) => {
 
   if (!otherUser) {
     return next(
-      new ErrorResponse(`User not found with id of ${req.params.userId}`, 404)
+      new ErrorResponse(`User not found with id of ${req.params.userId}`, 404),
     );
   }
 
@@ -46,12 +47,12 @@ exports.getOrCreateConversation = asyncHandler(async (req, res, next) => {
   let conversation = await Conversation.findOne({
     participants: { $all: [req.user.id, req.params.userId] },
   })
-    .populate('participants', ['name', 'avatar'])
+    .populate("participants", ["name", "avatar"])
     .populate({
-      path: 'lastMessage',
+      path: "lastMessage",
       populate: {
-        path: 'sender',
-        select: 'name avatar',
+        path: "sender",
+        select: "name avatar",
       },
     });
 
@@ -60,7 +61,7 @@ exports.getOrCreateConversation = asyncHandler(async (req, res, next) => {
     conversation = await Conversation.create({
       participants: [req.user.id, req.params.userId],
     });
-    await conversation.populate('participants', ['name', 'avatar']);
+    await conversation.populate("participants", ["name", "avatar"]);
   }
 
   res.status(200).json({
@@ -79,22 +80,22 @@ exports.getMessages = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `Conversation not found with id of ${req.params.conversationId}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
   // Check if user is participant
   if (!conversation.participants.includes(req.user.id)) {
     return next(
-      new ErrorResponse('Not authorized to access this conversation', 401)
+      new ErrorResponse("Not authorized to access this conversation", 401),
     );
   }
 
   const messages = await Message.find({
     conversation: req.params.conversationId,
   })
-    .populate('sender', ['name', 'avatar'])
+    .populate("sender", ["name", "avatar"])
     .sort({ createdAt: 1 });
 
   res.status(200).json({
@@ -114,41 +115,69 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `Conversation not found with id of ${req.params.conversationId}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
-  // Check if user is participant
   if (!conversation.participants.includes(req.user.id)) {
     return next(
-      new ErrorResponse('Not authorized to send messages in this conversation', 401)
+      new ErrorResponse(
+        "Not authorized to send messages in this conversation",
+        401,
+      ),
     );
   }
 
-  const message = await Message.create({
+  // Must have text or image — safe null checks
+  const text = req.body && req.body.text ? String(req.body.text).trim() : "";
+  const hasImage = !!(req.file && req.file.buffer);
+
+  if (!text && !hasImage) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Please add text or an image" });
+  }
+
+  const messageData = {
     conversation: req.params.conversationId,
     sender: req.user.id,
-    text: req.body.text,
+  };
+
+  if (text) messageData.text = text;
+
+  // Convert buffer to base64 data URL — works on any hosting (no filesystem needed)
+  if (hasImage) {
+    const mime = req.file.mimetype || "image/jpeg";
+    const b64 = req.file.buffer.toString("base64");
+    messageData.image = `data:${mime};base64,${b64}`;
+  }
+
+  const message = await Message.create(messageData);
+  await message.populate("sender", ["name", "avatar"]);
+
+  // Update conversation in parallel with notification — don't block response
+  const saveConv = Conversation.findByIdAndUpdate(
+    req.params.conversationId,
+    { lastMessage: message._id, updatedAt: Date.now() },
+    { new: true },
+  );
+
+  const sendNotif = User.findById(req.user.id).then((currentUser) => {
+    const otherParticipant = conversation.participants.find(
+      (p) => p.toString() !== req.user.id,
+    );
+    return createNotification(
+      otherParticipant,
+      req.user.id,
+      "message",
+      `${currentUser.name} sent you a message`,
+    );
   });
 
-  await message.populate('sender', ['name', 'avatar']);
-
-  // Update conversation's last message
-  conversation.lastMessage = message._id;
-  conversation.updatedAt = Date.now();
-  await conversation.save();
-
-  // Create notification for other participant
-  const otherParticipant = conversation.participants.find(
-    (p) => p.toString() !== req.user.id
-  );
-  const currentUser = await User.findById(req.user.id);
-  await createNotification(
-    otherParticipant,
-    req.user.id,
-    'message',
-    `${currentUser.name} sent you a message`
+  // Run both in parallel, don't await — respond immediately
+  Promise.all([saveConv, sendNotif]).catch((err) =>
+    console.error("Post-send tasks failed:", err),
   );
 
   res.status(201).json({
@@ -167,15 +196,15 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `Conversation not found with id of ${req.params.conversationId}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
   // Check if user is participant
   if (!conversation.participants.includes(req.user.id)) {
     return next(
-      new ErrorResponse('Not authorized to access this conversation', 401)
+      new ErrorResponse("Not authorized to access this conversation", 401),
     );
   }
 
@@ -186,7 +215,7 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
       sender: { $ne: req.user.id },
       read: false,
     },
-    { read: true }
+    { read: true },
   );
 
   res.status(200).json({
@@ -195,47 +224,51 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // inside controllers/messages.js (add near other exports)
 // controllers/messages.js (add/replace deleteMessage export)
 exports.deleteMessage = asyncHandler(async (req, res, next) => {
   const messageId = req.params.messageId;
-
-  // find the message
   let message = await Message.findById(messageId);
 
   if (!message) {
-    // not found
-    return next(new ErrorResponse(`Message not found with id of ${messageId}`, 404));
+    return next(
+      new ErrorResponse(`Message not found with id of ${messageId}`, 404),
+    );
   }
 
-  // Check permission: only sender can delete their own message
   if (message.sender.toString() !== req.user.id) {
-    return next(new ErrorResponse('Not authorized to delete this message', 401));
+    return next(
+      new ErrorResponse("Not authorized to delete this message", 401),
+    );
   }
 
-  // Delete the message - use deleteOne on model to be safe
-  // If message is a Mongoose document, you can call deleteOne() on it
+  // Delete image file if exists
+  if (message.image) {
+    const imagePath = path.join(__dirname, "..", message.image);
+    if (fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
+    }
+  }
+
   try {
-    if (typeof message.deleteOne === 'function') {
-      // document instance method
+    if (typeof message.deleteOne === "function") {
       await message.deleteOne();
     } else {
-      // fallback to model-level deletion
       await Message.findByIdAndDelete(messageId);
     }
   } catch (err) {
-    // fallback safe delete
     await Message.deleteOne({ _id: messageId });
   }
 
-  // Update conversation.lastMessage if it referenced the deleted message
   const conversation = await Conversation.findById(message.conversation);
   if (conversation) {
-    if (conversation.lastMessage && conversation.lastMessage.toString() === messageId) {
-      // find latest remaining message in conversation
-      const latest = await Message.findOne({ conversation: conversation._id }).sort({ createdAt: -1 });
-
+    if (
+      conversation.lastMessage &&
+      conversation.lastMessage.toString() === messageId
+    ) {
+      const latest = await Message.findOne({
+        conversation: conversation._id,
+      }).sort({ createdAt: -1 });
       conversation.lastMessage = latest ? latest._id : null;
       conversation.updatedAt = Date.now();
       await conversation.save();
@@ -248,34 +281,41 @@ exports.deleteMessage = asyncHandler(async (req, res, next) => {
   });
 });
 
-
-
 // controllers/messages.js
 // Add this near your other exports (after deleteMessage or with other endpoints)
 
 exports.deleteAllMessages = asyncHandler(async (req, res, next) => {
   const conversationId = req.params.conversationId;
-
-  // Validate conversation exists
   const conversation = await Conversation.findById(conversationId);
+
   if (!conversation) {
     return next(
       new ErrorResponse(
         `Conversation not found with id of ${conversationId}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
-  // Check permission: only participants can clear the conversation
   if (!conversation.participants.includes(req.user.id)) {
-    return next(new ErrorResponse('Not authorized to clear this conversation', 401));
+    return next(
+      new ErrorResponse("Not authorized to clear this conversation", 401),
+    );
   }
 
-  // Delete all messages in conversation
+  // Find all messages with images and delete the files
+  const messages = await Message.find({ conversation: conversationId });
+  messages.forEach((msg) => {
+    if (msg.image) {
+      const imagePath = path.join(__dirname, "..", msg.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+  });
+
   await Message.deleteMany({ conversation: conversationId });
 
-  // After deleting, set lastMessage to null and update timestamp
   conversation.lastMessage = null;
   conversation.updatedAt = Date.now();
   await conversation.save();
@@ -283,6 +323,6 @@ exports.deleteAllMessages = asyncHandler(async (req, res, next) => {
   return res.status(200).json({
     success: true,
     data: {},
-    message: 'All messages deleted for this conversation.',
+    message: "All messages deleted for this conversation.",
   });
 });

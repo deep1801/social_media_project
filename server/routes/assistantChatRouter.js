@@ -1,105 +1,70 @@
 const express = require("express");
 const axios = require("axios");
+const router = express.Router();
 
-const assistantChatRouter = express.Router();
+const HF_API_KEY = process.env.HF_API_KEY;
 
-/**
- * COMPANY CONTEXT – SocialApp (College Project)
- */
-const COMPANY_CONTEXT = `
-SYSTEM ROLE:
-You are the official AI assistant of SocialApp.
+// Using a conversational / text-generation model available on HF Inference API
+const HF_CHAT_URL =
+  "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions";
 
-SCOPE:
-You must respond only to questions related to the SocialApp project.
-If a question is unrelated, reply exactly with:
-I can only help with information related to the SocialApp project.
+const SYSTEM_PROMPT = `You are a helpful AI assistant for SocialApp, a social media platform.
+You help users with questions about using the app, posting content, messaging, following people, and general support.
+Keep your answers concise, friendly, and helpful. Do not answer questions unrelated to the social media app or general help.`;
 
-ABOUT SocialApp:
-SocialApp is a social media application developed as a student academic project.
-
-ACADEMIC DETAILS:
-This project is developed by MCA students of Quantum University, Roorkee.
-It is a 3rd semester project.
-
-PROJECT OWNERSHIP:
-The project is developed by Pradeep Kumar Yadav and his team.
-
-FACULTY GUIDANCE:
-This project is developed under the guidance of Raj Kumar Sir,
-respected Database Management Lab (DBML) faculty.
-The DBML subject includes concepts of database management,
-data visualization, and machine learning fundamentals.
-
-PROJECT OVERVIEW:
-SocialApp is a basic social media platform where users can:
-Sign up and log in using email ID and password.
-Create and manage user profiles.
-Create posts and share content.
-Like and comment on posts.
-Send and manage follow requests.
-Follow other users.
-Chat with other users.
-View activity feeds.
-
-AI USAGE:
-The project uses AI concepts to analyze posts and comments
-for basic sentiment and engagement understanding.
-
-RESPONSE GUIDELINES:
-Always answer in the context of the SocialApp project.
-Use simple, clear, and attractive language suitable for an academic project.
-Do not mention APIs, backend routes, or database tables.
-Do not invent features outside this project scope.
-Maintain a polite, professional, and helpful tone.
-`;
-
-
-
-/**
- * POST /
- * AI chat restricted to SocialApp context
- */
-assistantChatRouter.post("/", async (req, res) => {
+router.post("/chat", async (req, res) => {
   const { message } = req.body;
 
-  if (!message) {
-    return res.status(400).json({ error: "Message is required" });
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return res.status(400).json({ reply: "Message is required." });
+  }
+
+  if (!HF_API_KEY) {
+    console.error("HF_API_KEY is not set in .env");
+    return res.status(500).json({ reply: "AI service is not configured." });
   }
 
   try {
-    const HF_TOKEN = process.env.HF_API_KEY1;
-    if (!HF_TOKEN) {
-      return res.status(500).json({ error: "HF API key missing" });
-    }
-
     const response = await axios.post(
-      "https://router.huggingface.co/v1/chat/completions",
+      HF_CHAT_URL,
       {
-        model: "deepseek-ai/DeepSeek-V3:fastest",
+        model: "mistralai/Mistral-7B-Instruct-v0.3",
         messages: [
-          { role: "system", content: COMPANY_CONTEXT },
-          { role: "user", content: message }
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: message.trim() },
         ],
-        temperature: 0.3
+        max_tokens: 300,
+        temperature: 0.7,
       },
       {
         headers: {
-          Authorization: `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
+          Authorization: `Bearer ${HF_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 20000,
+      },
     );
 
     const reply =
-      response.data?.choices?.[0]?.message?.content ||
-      "I could not generate a response.";
+      response.data?.choices?.[0]?.message?.content?.trim() ||
+      "I couldn't generate a response. Please try again.";
 
-    res.json({ reply });
-  } catch (error) {
-    console.error("AI Chat Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "AI request failed" });
+    return res.json({ reply });
+  } catch (err) {
+    console.error("AI assistant error:", err?.response?.data || err.message);
+
+    // HF model loading (503) — tell user to retry
+    if (err?.response?.status === 503) {
+      return res.status(503).json({
+        reply: "The AI model is loading, please wait a moment and try again.",
+      });
+    }
+
+    return res.status(500).json({
+      reply:
+        "Sorry, I'm having trouble responding right now. Please try again shortly.",
+    });
   }
 });
 
-module.exports = assistantChatRouter;
+module.exports = router;

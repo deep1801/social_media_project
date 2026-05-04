@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, X, Check } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 import { Link } from "react-router-dom";
 
@@ -7,11 +7,9 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
-    // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -19,151 +17,122 @@ const NotificationBell = () => {
   const fetchNotifications = async () => {
     try {
       const res = await axiosInstance.get("/api/v1/notifications");
-      setNotifications(res.data.data);
-      setUnreadCount(res.data.unreadCount);
+      setNotifications(res.data.data || []);
+      setUnreadCount(res.data.unreadCount || 0);
     } catch (err) {
-      console.error("Failed to load notifications:", err);
+      console.error("Fetch error:", err);
     }
   };
 
-  const markAsRead = async (notificationId) => {
+  // ✅ mark read (instant UI update)
+  const markAsRead = async (id) => {
     try {
-      await axiosInstance.put(`/api/v1/notifications/${notificationId}/read`);
-      fetchNotifications();
+      await axiosInstance.put(`/api/v1/notifications/${id}/read`);
+
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, read: true } : n)),
+      );
+
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
     } catch (err) {
-      console.error("Failed to mark as read:", err);
+      console.error(err);
     }
   };
 
-  const markAllAsRead = async () => {
-    setLoading(true);
+  // ✅ DELETE FIX (IMPORTANT)
+  const deleteNotification = async (id, e) => {
+    e.preventDefault(); // 🚀 LINK ko rokega
+    e.stopPropagation(); // 🚀 bubbling rokega
+
     try {
-      await axiosInstance.put("/api/v1/notifications/read-all");
-      fetchNotifications();
+      await axiosInstance.delete(`/api/v1/notifications/${id}`);
+
+      // ✅ UI instantly update
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
     } catch (err) {
-      console.error("Failed to mark all as read:", err);
-    } finally {
-      setLoading(false);
+      console.error("Delete error:", err);
     }
-  };
-
-  const deleteNotification = async (notificationId, e) => {
-    e.stopPropagation();
-    try {
-      await axiosInstance.delete(`/api/v1/notifications/${notificationId}`);
-      fetchNotifications();
-    } catch (err) {
-      console.error("Failed to delete notification:", err);
-    }
-  };
-
-  const getNotificationLink = (notification) => {
-    if (notification.type === "follow") {
-      return `/user/${notification.sender._id}`;
-    } else if (notification.type === "message") {
-      return `/messages/${notification.sender._id}`;
-    } else if (notification.post) {
-      return `/`;
-    }
-    return "/";
-  };
-
-  const formatTime = (date) => {
-    const now = new Date();
-    const notifDate = new Date(date);
-    const diffMs = now - notifDate;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return notifDate.toLocaleDateString();
   };
 
   return (
     <div className="relative">
+      {/* 🔔 Bell */}
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="relative p-2 rounded-xl hover:bg-gray-100 transition"
       >
-        <Bell size={20} />
+        <Bell size={19} />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-            {unreadCount > 9 ? "9+" : unreadCount}
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+            {unreadCount}
           </span>
         )}
       </button>
 
+      {/* 📦 Dropdown */}
       {showDropdown && (
-        <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setShowDropdown(false)}
-          ></div>
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Notifications</h3>
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  disabled={loading}
-                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1"
-                >
-                  <Check size={14} />
-                  <span>Mark all read</span>
-                </button>
-              )}
-            </div>
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border animate-fade-in z-50">
+          {/* Header */}
+          <div className="p-3 font-semibold border-b flex justify-between items-center">
+            Notifications
+            {unreadCount > 0 && (
+              <button
+                onClick={async () => {
+                  await axiosInstance.put("/api/v1/notifications/read-all");
 
-            <div className="overflow-y-auto flex-1">
-              {notifications.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <Bell size={48} className="mx-auto mb-2 opacity-20" />
-                  <p>No notifications yet</p>
-                </div>
-              ) : (
-                notifications.map((notification) => (
-                  <Link
-                    key={notification._id}
-                    to={getNotificationLink(notification)}
-                    onClick={() => {
-                      if (!notification.read) {
-                        markAsRead(notification._id);
-                      }
-                      setShowDropdown(false);
-                    }}
-                    className={`block p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                      !notification.read ? "bg-blue-50" : ""
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                        {notification.sender?.name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatTime(notification.createdAt)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => deleteNotification(notification._id, e)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
+                  // instant update
+                  setNotifications((prev) =>
+                    prev.map((n) => ({ ...n, read: true })),
+                  );
+                  setUnreadCount(0);
+                }}
+                className="text-xs text-blue-500"
+              >
+                Mark all
+              </button>
+            )}
           </div>
-        </>
+
+          {/* List */}
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-6">
+                No notifications
+              </p>
+            ) : (
+              notifications.map((n) => (
+                <Link
+                  key={n._id}
+                  to="/"
+                  onClick={() => markAsRead(n._id)}
+                  className={`flex gap-3 p-3 hover:bg-gray-50 transition ${
+                    !n.read ? "bg-blue-50" : ""
+                  }`}
+                >
+                  {/* Avatar */}
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                    {n.sender?.name?.charAt(0) || "U"}
+                  </div>
+
+                  {/* Message */}
+                  <div className="flex-1 text-sm">
+                    <p>{n.message}</p>
+                  </div>
+
+                  {/* ❌ Delete */}
+                  <button
+                    onClick={(e) => deleteNotification(n._id, e)}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <X size={14} />
+                  </button>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
