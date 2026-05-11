@@ -50,12 +50,26 @@ io.on("connection", (socket) => {
 
   socket.on("user:join", (userId) => {
     console.log("👤 User joined:", userId);
+    socket.userId = userId;
     socket.join(userId);
   });
 
   socket.on("message:send", ({ receiverId, message }) => {
     if (receiverId) {
       io.to(receiverId).emit("message:receive", message);
+    }
+  });
+
+  // Typing indicators
+  socket.on("typing:start", ({ receiverId }) => {
+    if (receiverId && socket.userId) {
+      io.to(receiverId).emit("user:typing", { senderId: socket.userId, isTyping: true });
+    }
+  });
+
+  socket.on("typing:stop", ({ receiverId }) => {
+    if (receiverId && socket.userId) {
+      io.to(receiverId).emit("user:typing", { senderId: socket.userId, isTyping: false });
     }
   });
 
@@ -82,6 +96,7 @@ app.use("/api/v1/posts", require("./routes/posts"));
 app.use("/api/v1/users", require("./routes/users"));
 app.use("/api/v1/messages", require("./routes/messages"));
 app.use("/api/v1/notifications", require("./routes/notifications"));
+app.use("/api/v1/assistant", require("./routes/assistantChatRouter"));
 
 app.get("/", (req, res) => {
   res.json({ success: true, message: "API is running..." });

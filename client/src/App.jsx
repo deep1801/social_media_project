@@ -5,6 +5,7 @@ import { useAuth } from "./context/AuthContext";
 
 import Navbar from "./components/Navbar";
 import AISupportChat from "./pages/AiSupport";
+import ScrollToTop from "./components/ScrollToTop";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -20,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-gray-950">
         <div className="spinner w-10 h-10" />
         <p className="text-sm text-gray-400 font-medium">Loading…</p>
       </div>
@@ -36,7 +37,7 @@ const PublicRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-gray-950">
         <div className="spinner w-10 h-10" />
         <p className="text-sm text-gray-400 font-medium">Loading…</p>
       </div>
@@ -49,8 +50,9 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
         <AISupportChat />
+        <ScrollToTop />
 
         <Routes>
           <Route

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import axiosInstance from "../api/axiosInstance";
-import { Send, Image as ImageIcon, X } from "lucide-react";
+import { Send, Image as ImageIcon, X, Sparkles, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getSentiment } from "../helper/huggingFaceSentiment";
 
@@ -12,10 +12,10 @@ const MOOD_GRADIENT = {
 };
 
 const MOOD_BG = {
-  green: "bg-emerald-50 border-emerald-200 text-emerald-700",
-  red: "bg-red-50 border-red-200 text-red-600",
-  yellow: "bg-amber-50 border-amber-200 text-amber-700",
-  gray: "bg-gray-50 border-gray-200 text-gray-500",
+  green: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-400",
+  red: "bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-800/50 dark:text-red-400",
+  yellow: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800/50 dark:text-amber-400",
+  gray: "bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-400",
 };
 
 const CreatePost = ({ onPostCreated }) => {
@@ -26,6 +26,7 @@ const CreatePost = ({ onPostCreated }) => {
   const [error, setError] = useState("");
   const [sentiment, setSentiment] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const { user } = useAuth();
   const fileInputRef = useRef();
@@ -69,6 +70,23 @@ const CreatePost = ({ onPostCreated }) => {
     fileInputRef.current.value = null;
   };
 
+  // ── AI Caption Generator ──────────────────────────────────────────────────
+  const generateCaption = async () => {
+    setGenerating(true);
+    try {
+      const { data } = await axiosInstance.post("/api/v1/assistant/chat", {
+        message:
+          "Generate one creative, authentic social media post caption. Keep it 1-2 sentences, positive and engaging. Reply with just the caption text only — no quotes, no formatting, no explanation.",
+      });
+      const reply = typeof data.reply === "string" ? data.reply : "";
+      if (reply) setText(reply.replace(/^["']|["']$/g, "").trim());
+    } catch (err) {
+      console.error("Caption generation failed:", err);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!text.trim() && !image) return;
@@ -108,7 +126,7 @@ const CreatePost = ({ onPostCreated }) => {
   return (
     <div className="card">
       <div className="flex items-start gap-3">
-        <div className="avatar w-10 h-10 text-sm mt-0.5">
+        <div className="avatar w-10 h-10 text-sm mt-0.5 flex-shrink-0">
           {user?.name?.charAt(0).toUpperCase()}
         </div>
 
@@ -116,8 +134,8 @@ const CreatePost = ({ onPostCreated }) => {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="What's on your mind?"
-            className="w-full px-0 py-1 bg-transparent border-none outline-none resize-none text-gray-800 placeholder-gray-400 text-[15px] leading-relaxed"
+            placeholder="What's on your mind? Use #hashtags or @mentions…"
+            className="w-full px-0 py-1 bg-transparent border-none outline-none resize-none text-gray-800 dark:text-gray-100 placeholder-gray-400 text-[15px] leading-relaxed"
             rows="3"
             maxLength={500}
           />
@@ -125,10 +143,9 @@ const CreatePost = ({ onPostCreated }) => {
           {/* ── Mood meter ─────────────────────────────────────────────────── */}
           {text.trim().length >= 4 && (
             <div className="mb-3 space-y-2">
-              {/* Animated gradient bar */}
-              <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className="w-full h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
                 {analyzing ? (
-                  <div className="h-full w-1/3 bg-gray-300 rounded-full animate-pulse" />
+                  <div className="h-full w-1/3 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" />
                 ) : sentiment ? (
                   <div
                     className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-700`}
@@ -137,19 +154,16 @@ const CreatePost = ({ onPostCreated }) => {
                 ) : null}
               </div>
 
-              {/* Mood label */}
               {analyzing ? (
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 animate-pulse">
-                  <div className="w-3 h-3 rounded-full bg-gray-200" />
+                  <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700" />
                   <span>Detecting mood…</span>
                 </div>
               ) : sentiment ? (
                 <div
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium ${moodBg}`}
                 >
-                  <span className="text-base leading-none">
-                    {sentiment.emoji}
-                  </span>
+                  <span className="text-base leading-none">{sentiment.emoji}</span>
                   <span className="font-semibold">{sentiment.mood}</span>
                   <span className="opacity-60">· {pct}%</span>
                   {sentiment.suggestion && (
@@ -167,7 +181,7 @@ const CreatePost = ({ onPostCreated }) => {
             <div className="relative mt-2 mb-3 inline-block">
               <img
                 src={preview}
-                className="rounded-xl border border-gray-100 max-h-48 object-cover shadow-sm"
+                className="rounded-xl border border-gray-100 dark:border-gray-700 max-h-48 object-cover shadow-sm"
                 alt="preview"
               />
               <button
@@ -184,28 +198,48 @@ const CreatePost = ({ onPostCreated }) => {
 
           <div className="divider mb-3" />
 
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current.click()}
-              className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-brand-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-brand-50"
-            >
-              <ImageIcon size={18} />
-              <span>Photo</span>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageChange}
-              />
-            </button>
+          <div className="flex items-center justify-between gap-2">
+            {/* Left tools */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current.click()}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors px-2.5 py-1.5 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/20"
+              >
+                <ImageIcon size={17} />
+                <span className="hidden sm:inline">Photo</span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+              </button>
 
+              {/* AI Caption Generator */}
+              <button
+                type="button"
+                onClick={generateCaption}
+                disabled={generating}
+                className="flex items-center gap-1.5 text-sm font-medium text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors px-2.5 py-1.5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-50"
+                title="Generate AI caption"
+              >
+                {generating ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+                <span className="hidden sm:inline">
+                  {generating ? "Writing…" : "AI Caption"}
+                </span>
+              </button>
+            </div>
+
+            {/* Right: char count + post button */}
             <div className="flex items-center gap-3">
               {text.length > 0 && (
-                <span
-                  className={`text-xs font-medium tabular-nums ${charColor}`}
-                >
+                <span className={`text-xs font-medium tabular-nums ${charColor}`}>
                   {text.length}/500
                 </span>
               )}
