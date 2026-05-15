@@ -134,7 +134,9 @@ const SentimentPanel = ({ sentiment, loading }) => {
   const pct = Math.round((sentiment.confidence || 0) * 100);
 
   return (
-    <div className={`mb-3 rounded-xl border ${c.border} ${c.bg} overflow-hidden`}>
+    <div
+      className={`mb-3 rounded-xl border ${c.border} ${c.bg} overflow-hidden`}
+    >
       <button
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
@@ -142,7 +144,9 @@ const SentimentPanel = ({ sentiment, loading }) => {
         <span className="text-xl leading-none">{sentiment.emoji}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${c.text}`}>{sentiment.mood}</span>
+            <span className={`text-xs font-bold ${c.text}`}>
+              {sentiment.mood}
+            </span>
             <span className="text-[10px] text-gray-400">{pct}% confidence</span>
           </div>
           <div className="mt-1 w-full h-1.5 rounded-full bg-white/60 dark:bg-black/20 overflow-hidden">
@@ -166,7 +170,9 @@ const SentimentPanel = ({ sentiment, loading }) => {
             </p>
           )}
           {sentiment.suggestion && (
-            <div className={`flex items-start gap-2 px-2.5 py-2 rounded-lg ${c.light}`}>
+            <div
+              className={`flex items-start gap-2 px-2.5 py-2 rounded-lg ${c.light}`}
+            >
               <span className="text-sm">💡</span>
               <p className={`text-xs font-medium ${c.text} leading-relaxed`}>
                 {sentiment.suggestion}
@@ -253,7 +259,9 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
       if (emoji) setStoredReaction(post._id, user?._id, emoji);
       else if (isLiked) setStoredReaction(post._id, user?._id, null);
 
-      const res = await axiosInstance.put(`/api/v1/posts/${post._id}/${endpoint}`);
+      const res = await axiosInstance.put(
+        `/api/v1/posts/${post._id}/${endpoint}`,
+      );
       onUpdate(res.data?.data || res.data);
     } catch (err) {
       console.error(err);
@@ -284,9 +292,12 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
     if (!commentText.trim()) return;
     setLoading(true);
     try {
-      const res = await axiosInstance.post(`/api/v1/posts/${post._id}/comments`, {
-        text: commentText,
-      });
+      const res = await axiosInstance.post(
+        `/api/v1/posts/${post._id}/comments`,
+        {
+          text: commentText,
+        },
+      );
       onUpdate(res.data?.data || res.data);
       setCommentText("");
     } catch {
@@ -299,7 +310,7 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
   const handleDeleteComment = async (commentId) => {
     try {
       const res = await axiosInstance.delete(
-        `/api/v1/posts/${post._id}/comments/${commentId}`
+        `/api/v1/posts/${post._id}/comments/${commentId}`,
       );
       onUpdate(res.data?.data || res.data);
     } catch {
@@ -319,7 +330,9 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
             <p className="font-semibold text-sm text-gray-900 dark:text-white">
               {post.user?.name}
             </p>
-            <p className="text-[11px] text-gray-400">{timeAgo(post.createdAt)}</p>
+            <p className="text-[11px] text-gray-400">
+              {timeAgo(post.createdAt)}
+            </p>
           </div>
         </div>
         {isOwner && (
@@ -343,13 +356,10 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
       <SentimentPanel sentiment={sentiment} loading={sentimentLoad} />
 
       {/* Image */}
+      {/* Image */}
       {post.image && (
         <img
-          src={
-            post.image.startsWith("http")
-              ? post.image
-              : `${BASE_URL}${post.image}`
-          }
+          src={post.image}
           className="rounded-xl mb-3 w-full max-h-96 object-cover border border-gray-100 dark:border-gray-700/60 shadow-sm"
           alt="post"
         />
@@ -357,7 +367,6 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
 
       {/* Actions row */}
       <div className="flex items-center gap-1 pt-3 border-t border-gray-100 dark:border-gray-700/60">
-
         {/* Reaction button with picker */}
         <div
           className="relative"
@@ -388,8 +397,10 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
                 : "text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
             } ${likeAnim ? "animate-like-pop" : ""}`}
           >
-            <span className={`text-[17px] leading-none ${!isLiked ? "grayscale opacity-60" : ""}`}>
-              {isLiked ? (myReaction || "❤️") : "🤍"}
+            <span
+              className={`text-[17px] leading-none ${!isLiked ? "grayscale opacity-60" : ""}`}
+            >
+              {isLiked ? myReaction || "❤️" : "🤍"}
             </span>
             <span>{post.likes?.length || 0}</span>
           </button>
@@ -499,7 +510,11 @@ const PostCard = ({ post, onDelete, onUpdate }) => {
               disabled={loading || !commentText.trim()}
               className="btn-primary p-2.5 flex-shrink-0"
             >
-              {loading ? <span className="spinner w-4 h-4" /> : <Send size={15} />}
+              {loading ? (
+                <span className="spinner w-4 h-4" />
+              ) : (
+                <Send size={15} />
+              )}
             </button>
           </form>
         </div>
