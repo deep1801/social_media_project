@@ -63,13 +63,19 @@ io.on("connection", (socket) => {
   // Typing indicators
   socket.on("typing:start", ({ receiverId }) => {
     if (receiverId && socket.userId) {
-      io.to(receiverId).emit("user:typing", { senderId: socket.userId, isTyping: true });
+      io.to(receiverId).emit("user:typing", {
+        senderId: socket.userId,
+        isTyping: true,
+      });
     }
   });
 
   socket.on("typing:stop", ({ receiverId }) => {
     if (receiverId && socket.userId) {
-      io.to(receiverId).emit("user:typing", { senderId: socket.userId, isTyping: false });
+      io.to(receiverId).emit("user:typing", {
+        senderId: socket.userId,
+        isTyping: false,
+      });
     }
   });
 
@@ -97,6 +103,7 @@ app.use("/api/v1/users", require("./routes/users"));
 app.use("/api/v1/messages", require("./routes/messages"));
 app.use("/api/v1/notifications", require("./routes/notifications"));
 app.use("/api/v1/assistant", require("./routes/assistantChatRouter"));
+app.use("/api/v1/sentiment", require("./routes/sentiment"));
 
 app.get("/", (req, res) => {
   res.json({ success: true, message: "API is running..." });

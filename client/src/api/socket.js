@@ -16,14 +16,14 @@ const socket = io(SOCKET_URL, {
 });
 
 export const connectSocket = (userId) => {
-  if (!socket.connected) {
-    socket.connect();
-
-    socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-
+  // Always ensure user:join is emitted when socket is ready
+  if (socket.connected) {
+    socket.emit("user:join", userId);
+  } else {
+    socket.once("connect", () => {
       socket.emit("user:join", userId);
     });
+    socket.connect();
   }
 };
 

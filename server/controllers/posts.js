@@ -3,8 +3,6 @@ const User = require("../models/User");
 const ErrorResponse = require("../utils/errorResponse");
 const asyncHandler = require("../middleware/async");
 const { createNotification } = require("./notifications");
-const path = require("path");
-const fs = require("fs");
 
 // @desc    Get all posts
 // @route   GET /api/v1/posts
@@ -49,7 +47,8 @@ exports.createPost = asyncHandler(async (req, res, next) => {
   req.body.user = req.user.id;
 
   if (req.file) {
-    req.body.image = `/uploads/${req.file.filename}`;
+    const base64 = req.file.buffer.toString("base64");
+    req.body.image = `data:${req.file.mimetype};base64,${base64}`;
   }
 
   // Must have text or image
@@ -153,14 +152,6 @@ exports.deletePost = asyncHandler(async (req, res, next) => {
         401,
       ),
     );
-  }
-
-  // Delete image file from disk if it exists
-  if (post.image) {
-    const imagePath = path.join(__dirname, "..", post.image);
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    }
   }
 
   await post.deleteOne();
